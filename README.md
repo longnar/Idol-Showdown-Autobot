@@ -22,6 +22,16 @@ Chào mừng bạn đến với **Idol Showdown Autobot (V0.1 Beta)**, một ứ
 
 ## 🚀 Hướng Dẫn Vận Hành
 
+### LƯU Ý
+Nếu khi chạy không thấy player 2 có hành động gì :
+1. Kiểm tra xem đang nhận màn hình và ứng dụng gì
+   + Kiểm tra file config.json
+   + Sửa : "game_process": "notepad.exe" -> "game_process": "idol showdown.exe", "game_window": "Notepad" -> "game_window": "Idol Showdown",
+2. Kiểm tra Unikey :
+   + Vì hầu hết mọi tựa game hiện nay nhận đầu vào bàn phím theo tiếng anh(Tức tiếng Việt không dấu) nên khi nhận input có thể sai ( W = Ư )
+3. Nên đọc qua User Manual 1 lần để nắm cách sử dụng app
+
+
 ### Cách 1: Chạy trực tiếp từ File Thực thi (.exe)
 1.  Truy cập thư mục [dist/](file:///l:/Code%20Project/fighting_game_bot/dist/).
 2.  Nhấp đúp chuột vào tệp [Idolshowdown_autobot.exe](file:///l:/Code%20Project/fighting_game_bot/dist/Idolshowdown_autobot.exe) để mở chương trình dưới dạng Desktop App.
@@ -48,39 +58,6 @@ Chào mừng bạn đến với **Idol Showdown Autobot (V0.1 Beta)**, một ứ
     ```
 
 ---
-
-## 🛠️ Hướng Dẫn Đóng Gói Lại Ứng Dụng
-
-Nếu bạn thay đổi mã nguồn Python hoặc giao diện React và muốn xuất lại tệp `.exe` độc lập:
-
-```powershell
-.venv\Scripts\pyinstaller --onefile --windowed --name=Idolshowdown_autobot --add-data "gui/dist;gui/dist" run.py
-```
-
----
-
-## 📤 Hướng Dẫn Đưa Dự Án Lên GitHub
-
-Chúng tôi đã cấu hình sẵn tệp `.gitignore` để loại bỏ các thư mục rác, thư mục ảo `.venv` và `node_modules` nặng nề khi đưa lên GitHub. Hãy thực hiện các lệnh sau trong Terminal tại thư mục gốc:
-
-1.  **Khởi tạo Git**:
-    ```powershell
-    git init
-    ```
-2.  **Thêm các tệp vào tracking**:
-    ```powershell
-    git add .
-    ```
-3.  **Commit phiên bản Beta đầu tiên**:
-    ```powershell
-    git commit -m "Initial commit V0.1 Beta - Integrated PyWebView Desktop App"
-    ```
-4.  **Tạo Repository mới trên GitHub**, sau đó chạy các lệnh liên kết (thay thế URL bằng link repo của bạn):
-    ```powershell
-    git branch -M main
-    git remote add origin https://github.com/ten-user-cua-ban/ten-repo-cua-ban.git
-    git push -u origin main
-    ```
 
 ---
 
