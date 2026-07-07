@@ -1,0 +1,19 @@
+# Python virtual environment and cache
+.venv/
+__pycache__/
+*.pyc
+
+# Node/React dependencies and production builds
+gui/node_modules/
+gui/dist/
+
+# PyInstaller temporary builds and output specs
+build/
+dist/
+*.spec
+
+# User local databases and configuration logs
+config.json
+playlists.json
+combos.json
+debug_run.txt
