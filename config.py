@@ -6,7 +6,7 @@ from sequence import InputStep, InputSequence
 # Target window title (substring match, case-insensitive).
 # For easy initial verification, we default to "Notepad".
 # Change this to your game title (e.g., "Street Fighter V", "Tekken 8", "Guilty Gear").
-TARGET_GAME_WINDOW = "Notepad"
+TARGET_GAME_WINDOW = ""
 
 # Game speed in frames per second
 FPS = 60.0
@@ -77,10 +77,10 @@ jump_back_kick_p2 = InputSequence(
 )
 
 # ---------------------------------------------------------
-# NOTEPAD TEST SEQUENCES (Use these when testing on Notepad!)
+# TEST SEQUENCES
 # ---------------------------------------------------------
-# Simple sequences that print recognizable text in Notepad
-notepad_seq_1 = InputSequence(
+# Simple sequences that print recognizable text for verification
+test_seq_1 = InputSequence(
     name="Type HELLO",
     steps=[
         InputStep(keys="h", duration_frames=5),
@@ -92,7 +92,7 @@ notepad_seq_1 = InputSequence(
     ]
 )
 
-notepad_seq_2 = InputSequence(
+test_seq_2 = InputSequence(
     name="Type P2_BOT",
     steps=[
         InputStep(keys="shift", duration_frames=2), # Hold shift to uppercase P
@@ -107,8 +107,8 @@ notepad_seq_2 = InputSequence(
 )
 
 # Define which list of sequences the controller will execute
-# Switch between TEST_SEQUENCES (Notepad) and GAME_SEQUENCES (Fighting Game) here.
-TEST_SEQUENCES = [notepad_seq_1, notepad_seq_2]
+# Switch between TEST_SEQUENCES and GAME_SEQUENCES here.
+TEST_SEQUENCES = [test_seq_1, test_seq_2]
 GAME_SEQUENCES = [hadouken_p2, shoryuken_p2, light_kick_p2, jump_back_kick_p2]
 
 # Active sequence list to load

@@ -30,6 +30,12 @@ class ComboExecutor:
         for key in SCAN_CODES.keys():
             release_key(key)
 
+    def reset_executor_state(self):
+        """
+        Resets the executor state by releasing all virtual keys completely.
+        """
+        self.release_all_keys()
+
     def sleep_with_fail_safe(self, duration_sec: float) -> bool:
         """
         High-resolution sleep that polls the GameMonitor at low latency (50ms).

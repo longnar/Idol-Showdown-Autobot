@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useBot } from './BotContext';
-import { Play, Pause, Clock, Save, Cpu, CheckCircle, Info, Keyboard } from 'lucide-react';
+import { Play, Pause, Clock, Save, Cpu, CheckCircle, Info, Keyboard, RefreshCw } from 'lucide-react';
 
 const SettingsPanel = () => {
-  const { settings, saveGeneralSettings, playlists } = useBot();
+  const { settings, saveGeneralSettings, playlists, gameStatus = { running: false, focused: false, pid: null } } = useBot();
 
   // Local state for settings form
   const [delayFrames, setDelayFrames] = useState(settings.delayFrames);
@@ -11,6 +11,8 @@ const SettingsPanel = () => {
   const [selectedComboSet, setSelectedComboSet] = useState(settings.selectedComboSet);
   const [startHotkey, setStartHotkey] = useState(settings.startHotkey);
   const [stopHotkey, setStopHotkey] = useState(settings.stopHotkey);
+  const [gameProcess, setGameProcess] = useState(settings.gameProcess || '');
+  const [gameWindow, setGameWindow] = useState(settings.gameWindow || '');
 
   // States for capturing hotkeys
   const [listeningFor, setListeningFor] = useState(null); // 'start' | 'stop' | null
@@ -23,6 +25,8 @@ const SettingsPanel = () => {
     setSelectedComboSet(settings.selectedComboSet);
     setStartHotkey(settings.startHotkey);
     setStopHotkey(settings.stopHotkey);
+    setGameProcess(settings.gameProcess || '');
+    setGameWindow(settings.gameWindow || '');
   }, [settings]);
 
   // Capture hotkey keypress
@@ -62,7 +66,9 @@ const SettingsPanel = () => {
       isPlayer2Right,
       selectedComboSet,
       startHotkey,
-      stopHotkey
+      stopHotkey,
+      gameProcess,
+      gameWindow
     });
 
     if (success) {
@@ -98,20 +104,34 @@ const SettingsPanel = () => {
         <div className="glass-panel rounded-2xl p-5 border border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:border-slate-700/50">
           <div>
             <h3 className="text-sm font-bold text-slate-200 mb-1 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Game Status: ACTIVE
+              <span className={`w-2 h-2 rounded-full ${gameStatus.running ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+              Game Status: {gameStatus.running ? 'ACTIVE' : 'INACTIVE'}
             </h3>
             <p className="text-xs text-slate-400">
-              Bot đã kết nối với tiến trình <span className="font-mono text-cyan-400">{settings.gameProcess}</span> và sẵn sàng thực thi.
+              {gameStatus.running ? (
+                <>
+                  Bot đã kết nối với tiến trình <span className="font-mono text-cyan-400">{settings.gameProcess}</span> và sẵn sàng thực thi.
+                </>
+              ) : (
+                <>
+                  Tiến trình <span className="font-mono text-rose-400">{settings.gameProcess}</span> không hoạt động. Hãy khởi động game.
+                </>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg tracking-wider uppercase">
-              Connected
+            <span className={`px-3 py-1.5 border text-xs font-bold rounded-lg tracking-wider uppercase ${
+              gameStatus.running
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+            }`}>
+              {gameStatus.running ? 'Connected' : 'Disconnected'}
             </span>
-            <span className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 text-xs font-mono rounded-lg">
-              PID: 8492
-            </span>
+            {gameStatus.running && gameStatus.pid && (
+              <span className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 text-xs font-mono rounded-lg">
+                PID: {gameStatus.pid}
+              </span>
+            )}
           </div>
         </div>
 
@@ -262,6 +282,46 @@ const SettingsPanel = () => {
 
         </div>
 
+        {/* Game Process & Window Configuration */}
+        <div className="glass-panel rounded-2xl p-5 border border-slate-800/50 flex flex-col gap-4 transition-all duration-300 hover:border-slate-700/50">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+                <Cpu className="w-4 h-4" />
+              </div>
+              <label className="text-sm font-bold text-slate-200 tracking-wide">
+                Cấu hình Tiến trình & Cửa sổ Trò chơi
+              </label>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Cấu hình thủ công thông tin trò chơi cần tự động hóa bằng cách nhập tên tiến trình và tên tiêu đề cửa sổ.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 items-end">
+            <div>
+              <label className="text-[10px] text-slate-500 block mb-1 font-bold">TÊN TIẾN TRÌNH (PROCESS NAME)</label>
+              <input
+                type="text"
+                placeholder="e.g. Idol Showdown.exe"
+                value={gameProcess}
+                onChange={(e) => setGameProcess(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900/60 rounded-xl border border-slate-800 focus:border-cyan-500/80 text-white font-mono font-bold text-xs outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-500 block mb-1 font-bold">TÊN CỬA SỔ (WINDOW NAME)</label>
+              <input
+                type="text"
+                placeholder="e.g. Idol Showdown"
+                value={gameWindow}
+                onChange={(e) => setGameWindow(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900/60 rounded-xl border border-slate-800 focus:border-cyan-500/80 text-white font-bold text-xs outline-none transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* Save status notification bubble */}
@@ -293,4 +353,4 @@ const SettingsPanel = () => {
   );
 };
 
-export default SettingsPanel;
+export default React.memo(SettingsPanel);

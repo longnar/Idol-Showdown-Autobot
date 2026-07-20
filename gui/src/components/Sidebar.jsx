@@ -104,7 +104,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
 
       {/* Footer information */}
       <div className="mt-8 pt-6 border-t border-slate-800/50 px-2 flex items-center justify-between text-xs text-slate-500 font-medium">
-        <span>Phiên bản v1.0.0</span>
+        <span>Phiên bản v0.101</span>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-emerald-400">Backend Connected</span>
@@ -114,4 +114,4 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

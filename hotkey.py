@@ -7,13 +7,66 @@ from typing import Callable
 WM_HOTKEY = 0x0312
 MOD_NOREPEAT = 0x4000
 
-# Virtual Key Codes (VK)
-# F1 to F12 are 0x70 to 0x7B
-VK_MAP = {
-    "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73, "f5": 0x74, "f6": 0x75,
-    "f7": 0x76, "f8": 0x77, "f9": 0x78, "f10": 0x79, "f11": 0x7A, "f12": 0x7B,
-    "num_lock": 0x90, "scroll_lock": 0x91,
-}
+# Virtual Key Codes (VK) Mapper
+def get_vk_code(key_name: str) -> int:
+    key_name = key_name.lower().strip()
+    
+    # Function keys: F1 to F24
+    if key_name.startswith("f") and key_name[1:].isdigit():
+        f_num = int(key_name[1:])
+        if 1 <= f_num <= 24:
+            return 0x6F + f_num
+            
+    # Letters A to Z
+    if len(key_name) == 1 and 'a' <= key_name <= 'z':
+        return ord(key_name.upper())
+        
+    # Numbers 0 to 9
+    if len(key_name) == 1 and '0' <= key_name <= '9':
+        return ord(key_name)
+        
+    # Special keys
+    special_keys = {
+        "backspace": 0x08,
+        "tab": 0x09,
+        "clear": 0x0C,
+        "enter": 0x0D,
+        "return": 0x0D,
+        "shift": 0x10,
+        "ctrl": 0x11,
+        "control": 0x11,
+        "alt": 0x12,
+        "pause": 0x13,
+        "capslock": 0x14,
+        "caps_lock": 0x14,
+        "escape": 0x1B,
+        "esc": 0x1B,
+        "space": 0x20,
+        "pageup": 0x21,
+        "page_up": 0x21,
+        "pagedown": 0x22,
+        "page_down": 0x22,
+        "end": 0x23,
+        "home": 0x24,
+        "left": 0x25,
+        "up": 0x26,
+        "right": 0x27,
+        "down": 0x28,
+        "select": 0x29,
+        "print": 0x2A,
+        "execute": 0x2B,
+        "snapshot": 0x2C,
+        "printscreen": 0x2C,
+        "insert": 0x2D,
+        "delete": 0x2E,
+        "help": 0x2F,
+        "numlock": 0x90,
+        "num_lock": 0x90,
+        "scrolllock": 0x91,
+        "scroll_lock": 0x91,
+    }
+    
+    return special_keys.get(key_name)
 
 class WindowsHotkeyListener:
     """Listens for global Windows hotkeys using RegisterHotKey API in a background thread.
@@ -27,11 +80,11 @@ class WindowsHotkeyListener:
 
     def register_hotkey(self, key_name: str, callback: Callable[[], None]):
         """Saves a hotkey mapping to be registered when the listener starts."""
-        key_name = key_name.lower()
-        if key_name not in VK_MAP:
-            raise ValueError(f"Unsupported hotkey: {key_name}. Supported keys: F1-F12")
+        key_name = key_name.lower().strip()
+        vk_code = get_vk_code(key_name)
+        if not vk_code:
+            raise ValueError(f"Unsupported hotkey: {key_name}.")
         
-        vk_code = VK_MAP[key_name]
         # Use the vk_code as the unique hotkey ID
         self._hotkeys[vk_code] = {
             "vk": vk_code,
@@ -62,6 +115,8 @@ class WindowsHotkeyListener:
                 if msg.message == WM_HOTKEY:
                     hotkey_id = msg.wParam
                     if hotkey_id in self._hotkeys:
+                        hk_name = self._hotkeys[hotkey_id]["name"].upper()
+                        print(f"[Hotkey Debug] Hotkey {hk_name} message received!")
                         # Invoke callback on a separate thread so it doesn't block the message loop
                         threading.Thread(target=self._hotkeys[hotkey_id]["callback"], daemon=True).start()
                         

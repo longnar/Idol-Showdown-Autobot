@@ -81,6 +81,13 @@ playlist_mgr = ComboPlaylistManager()
 
 # Intermediate database helper for Combos metadata
 def load_combos_db():
+    if playlist_mgr.first_run:
+        combos = []
+        with open("combos.json", "w", encoding="utf-8") as f:
+            json.dump(combos, f, indent=4)
+        playlist_mgr.first_run = False
+        return combos
+
     if not os.path.exists("combos.json"):
         # Import list from playlists.json
         combos = []
@@ -137,14 +144,20 @@ class BotManager:
             
             # Reload config to get latest values
             self.config_mgr.config = self.config_mgr.load_config()
-            self.playlist_mgr.playlists = self.playlist_mgr.load_playlists()
             
-            playlist_name = self.config_mgr.config.get("selected_playlist", "test_1")
-            process_name = self.config_mgr.config.get("game_process", "notepad.exe")
-            window_title = self.config_mgr.config.get("game_window", "Notepad")
+            # Synchronize and select playlist safely (Fix Lỗi 2)
+            playlist_name = self.config_mgr.config.get("selected_playlist", "default")
+            playlist_name = self.playlist_mgr.load_and_select_playlist(playlist_name)
+            
+            # Save the synchronized playlist name back to config.json
+            self.config_mgr.config["selected_playlist"] = playlist_name
+            self.config_mgr.save_config()
+            
+            process_name = self.config_mgr.config.get("game_process", "")
+            window_title = self.config_mgr.config.get("game_window", "")
             
             # Launch modules
-            game_monitor = GameMonitor(process_name, window_title)
+            game_monitor = GameMonitor(self.config_mgr)
             executor = ComboExecutor(self.config_mgr, game_monitor, 60.0)
             mapper = InputMapper(self.config_mgr)
             
@@ -173,6 +186,13 @@ class BotManager:
             self.active_playlist = None
             add_log("warning", "Bot playlist loop stopped.")
             
+    def toggle_bot(self, action: str):
+        print(f"[Debug Hotkey] toggle_bot called with action: '{action}'")
+        if action == "start":
+            self.start_bot()
+        elif action == "stop":
+            self.stop_bot()
+            
     def setup_hotkeys(self):
         # Stop current listener
         if self.hotkey_listener:
@@ -187,14 +207,21 @@ class BotManager:
         
         self.hotkey_listener = WindowsHotkeyListener()
         try:
-            self.hotkey_listener.register_hotkey(start_hk, self.start_bot)
-            self.hotkey_listener.register_hotkey(stop_hk, self.stop_bot)
+            self.hotkey_listener.register_hotkey(start_hk, lambda: self.toggle_bot("start"))
+            self.hotkey_listener.register_hotkey(stop_hk, lambda: self.toggle_bot("stop"))
             self.hotkey_listener.start()
             add_log("success", f"Registered global hotkeys: START={start_hk.upper()}, STOP={stop_hk.upper()}")
         except Exception as e:
             add_log("error", f"Could not bind global hotkeys: {e}")
 
 bot_mgr = BotManager(config_mgr, playlist_mgr)
+
+@app.before_request
+def update_interaction_time():
+    # If the endpoint is NOT static or polling state/logs, update interaction time
+    path = request.path
+    if not path.startswith("/static") and path not in ("/api/status", "/api/logs", "/api/bot/status", "/"):
+        GameMonitor.update_interaction()
 
 # ----------------------------------------------------
 # API ENDPOINTS
@@ -207,14 +234,15 @@ def index():
 
 @app.route("/api/status", methods=["GET"])
 def get_status():
-    process_name = config_mgr.config.get("game_process", "notepad.exe")
-    window_title = config_mgr.config.get("game_window", "Notepad")
-    game_monitor = GameMonitor(process_name, window_title)
+    process_name = config_mgr.config.get("game_process", "")
+    window_title = config_mgr.config.get("game_window", "")
+    game_monitor = GameMonitor(config_mgr)
     return jsonify({
         "game_running": game_monitor.is_game_running(),
         "game_focused": game_monitor.is_game_focused(),
         "game_process": process_name,
-        "game_window": window_title
+        "game_window": window_title,
+        "game_pid": game_monitor.get_game_pid()
     })
 
 @app.route("/api/config", methods=["GET"])
@@ -229,8 +257,8 @@ def get_config():
         "selectedComboSet": conf.get("selected_playlist", "test_1"),
         "startHotkey": conf.get("start_hotkey", "F9").upper(),
         "stopHotkey": conf.get("stop_hotkey", "F10").upper(),
-        "gameProcess": conf.get("game_process", "notepad.exe"),
-        "gameWindow": conf.get("game_window", "Notepad")
+        "gameProcess": conf.get("game_process", ""),
+        "gameWindow": conf.get("game_window", "")
     }
     
     # Map backend binding keys to frontend names
@@ -247,7 +275,7 @@ def get_config():
         "Burst": b.get("Burst", "u"),
         "Collab": b.get("Collab", "o"),
         "Items": b.get("Items", "h"),
-        "Grap": b.get("Grap", "g")
+        "Grab": b.get("Grab", "g")
     }
     
     return jsonify({
@@ -293,7 +321,7 @@ def save_p2_bindings():
         "Burst": bindings_req.get("Burst", "u").lower(),
         "Collab": bindings_req.get("Collab", "o").lower(),
         "Items": bindings_req.get("Items", "h").lower(),
-        "Grap": bindings_req.get("Grap", "g").lower()
+        "Grab": bindings_req.get("Grab", "g").lower()
     }
     
     # Validate keys
@@ -306,6 +334,7 @@ def save_p2_bindings():
     config_mgr.save_config()
     add_log("success", "Synchronized 12 Player 2 virtual key bindings.")
     return jsonify({"success": True})
+
 
 @app.route("/api/playlists", methods=["GET"])
 def get_playlists():
@@ -321,6 +350,22 @@ def get_combos():
         "playlists": playlist_mgr.get_playlist_names()
     })
 
+@app.route("/api/create_playlist", methods=["POST"])
+def create_playlist():
+    data = request.json
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"success": False, "message": "Tên danh sách không được để trống"}), 400
+        
+    playlist_mgr.playlists = playlist_mgr.load_playlists()
+    if name in playlist_mgr.playlists:
+        return jsonify({"success": False, "message": "Tên danh sách đã tồn tại"}), 400
+        
+    playlist_mgr.create_playlist(name)
+    playlist_mgr.reload_playlists()
+    add_log("success", f"Created new playlist '{name}'.")
+    return jsonify({"success": True})
+
 @app.route("/api/save_combo", methods=["POST"])
 def save_combo():
     data = request.json
@@ -333,9 +378,13 @@ def save_combo():
         return jsonify({"success": False, "message": "Thông tin đầu vào không đầy đủ"}), 400
         
     is_numpad = any(char.isdigit() for char in combo_input)
-    if is_numpad and not playlist_mgr.validate_combo_string(combo_input):
-        add_log("error", f"Invalid Numpad notation syntax: '{combo_input}'")
-        return jsonify({"success": False, "message": "Sai cú pháp Numpad (Chỉ cho phép 1-9, L, M, H, S, B, CL, dấu + và dấu ,)"}), 400
+    try:
+        from input_mapper import InputMapper
+        mapper = InputMapper(config_mgr)
+        mapper.parse_combo(combo_input, is_numpad=is_numpad)
+    except ValueError as ve:
+        add_log("error", f"Invalid combo syntax: {ve}")
+        return jsonify({"success": False, "message": f"Sai cú pháp combo: {ve}"}), 400
         
     combos_list = load_combos_db()
     if combo_id:
@@ -398,22 +447,29 @@ def api_test_combo():
     if not combo_sequence:
         return jsonify({"success": False, "notice": "[LỖI] Chuỗi combo rỗng!"}), 400
         
-    process_name = config_mgr.config.get("game_process", "notepad.exe")
-    window_title = config_mgr.config.get("game_window", "Notepad")
-    game_monitor = GameMonitor(process_name, window_title)
+    config_mgr.config = config_mgr.load_config()
+    process_name = config_mgr.config.get("game_process", "")
+    window_title = config_mgr.config.get("game_window", "")
+    game_monitor = GameMonitor(config_mgr)
     
     if not game_monitor.is_game_running():
         msg = f"[LỖI] Tiến trình game '{process_name}' không hoạt động!"
         add_log("error", msg)
         return jsonify({"success": False, "notice": msg})
         
-    # Asynchronous thread loop with 3 seconds safety margin
+    result = {"success": False, "notice": ""}
+    event = threading.Event()
+    
     def run_test_thread():
         add_log("info", "Hãy kích hoạt/nhấp chuột chọn cửa sổ game trong vòng 3 giây để thực thi thử nghiệm...")
         time.sleep(3.0)
         
         if not game_monitor.check_fail_safe():
-            add_log("error", "[Test Failed] Game không được focus hoặc không hoạt động!")
+            msg = "[Test Failed] Game không được focus hoặc không hoạt động!"
+            add_log("error", msg)
+            result["success"] = False
+            result["notice"] = msg
+            event.set()
             return
             
         executor = ComboExecutor(config_mgr, game_monitor, 60.0)
@@ -422,18 +478,49 @@ def api_test_combo():
             key_events = mapper.parse_combo(combo_sequence, is_numpad=is_numpad)
             if key_events:
                 add_log("info", f"[Test Bot] Bắt đầu thi triển: '{combo_sequence}'")
-                executor.execute_overlapping_combo(key_events)
-                add_log("success", f"[Test Bot] Thi triển hoàn tất: '{combo_sequence}'")
+                exec_success = executor.execute_overlapping_combo(key_events)
+                if exec_success:
+                    msg = f"[TEST OK] Thi triển hoàn tất combo: '{combo_sequence}'"
+                    if mapper.j_analysis_logs:
+                        msg += "\n" + "\n".join(mapper.j_analysis_logs)
+                    add_log("success", msg)
+                    result["success"] = True
+                    result["notice"] = msg
+                else:
+                    msg = f"[LỖI] Không thể thi triển combo: '{combo_sequence}'"
+                    add_log("error", msg)
+                    result["success"] = False
+                    result["notice"] = msg
             else:
-                add_log("error", f"[Test Bot] Cú pháp combo không thể giải mã: '{combo_sequence}'")
+                msg = f"[LỖI] Cú pháp combo không thể giải mã: '{combo_sequence}'"
+                add_log("error", msg)
+                result["success"] = False
+                result["notice"] = msg
+        except ValueError as ve:
+            msg = f"[LỖI CÚ PHÁP] {ve}"
+            add_log("error", msg)
+            result["success"] = False
+            result["notice"] = msg
         except Exception as e:
-            add_log("error", f"[Test Bot] Lỗi ngoại lệ khi thi triển: {e}")
-            
+            msg = f"[LỖI] Ngoại lệ khi thi triển combo: {e}"
+            add_log("error", msg)
+            result["success"] = False
+            result["notice"] = msg
+        event.set()
+        
     threading.Thread(target=run_test_thread, daemon=True).start()
-    return jsonify({
-        "success": True,
-        "notice": f"[TESTING LOADED] Tiến trình game: '{process_name}'. Hãy click hoạt động cửa sổ game trong 3 giây tiếp theo."
-    })
+    
+    # Wait for the thread to complete (up to 15 seconds)
+    completed = event.wait(timeout=15.0)
+    if not completed:
+        msg = "[LỖI] Quá thời gian chờ kiểm thử (Timeout 15s)!"
+        add_log("error", msg)
+        return jsonify({
+            "success": False,
+            "notice": msg
+        })
+        
+    return jsonify(result)
 
 @app.route("/api/select_combo", methods=["POST"])
 def api_select_combo():
@@ -444,9 +531,10 @@ def api_select_combo():
     if not combo_input:
         return jsonify({"success": False}), 400
         
-    process_name = config_mgr.config.get("game_process", "notepad.exe")
-    window_title = config_mgr.config.get("game_window", "Notepad")
-    game_monitor = GameMonitor(process_name, window_title)
+    config_mgr.config = config_mgr.load_config()
+    process_name = config_mgr.config.get("game_process", "")
+    window_title = config_mgr.config.get("game_window", "")
+    game_monitor = GameMonitor(config_mgr)
     
     if not game_monitor.is_game_running():
         add_log("error", f"Lỗi thi triển nhanh: Game '{process_name}' không chạy.")
@@ -479,6 +567,10 @@ def get_logs():
 
 @app.route("/api/bot/status", methods=["GET"])
 def get_bot_status():
+    if bot_mgr.orchestrator:
+        if not bot_mgr.orchestrator.is_running and bot_mgr.running:
+            bot_mgr.running = False
+            bot_mgr.active_playlist = None
     return jsonify({
         "running": bot_mgr.running,
         "active_playlist": bot_mgr.active_playlist

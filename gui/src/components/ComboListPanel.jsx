@@ -55,7 +55,7 @@ const ComboListPanel = () => {
     setIsEditing(false);
     setFormName('');
     setFormInput('');
-    setFormPlaylist(playlists[0] || 'test_1');
+    setFormPlaylist('');
   };
 
   const startEdit = () => {
@@ -75,6 +75,10 @@ const ComboListPanel = () => {
   const handleSaveForm = async () => {
     if (!formName.trim() || !formInput.trim()) {
       alert('Vui lòng nhập đầy đủ tên và nút combo!');
+      return;
+    }
+    if (!formPlaylist) {
+      alert('Vui lòng chọn danh sách phát (Playlist) trước khi lưu!');
       return;
     }
 
@@ -247,6 +251,7 @@ const ComboListPanel = () => {
                       onChange={(e) => setFormPlaylist(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-900/60 rounded-xl border border-slate-800 text-white font-bold text-[11px] outline-none cursor-pointer appearance-none"
                     >
+                      <option value="" className="bg-slate-950 text-white">-- Chọn Playlist --</option>
                       {playlists.map(name => (
                         <option key={name} value={name} className="bg-slate-950 text-white">
                           {name.toUpperCase()}
@@ -348,4 +353,4 @@ const ComboListPanel = () => {
   );
 };
 
-export default ComboListPanel;
+export default React.memo(ComboListPanel);

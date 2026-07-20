@@ -1,20 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useBot } from './BotContext';
 import { HelpCircle, Play, Save, Info, Cpu, CheckCircle } from 'lucide-react';
 
 const ComboCustomPanel = () => {
-  const { playlists, testCombo, saveComboToList } = useBot();
+  const { playlists, testCombo, saveComboToList, createPlaylist } = useBot();
 
   // Form states
   const [comboName, setComboName] = useState('');
   const [comboInput, setComboInput] = useState('');
   const [isNumpad, setIsNumpad] = useState(true);
-  const [selectedPlaylist, setSelectedPlaylist] = useState(playlists[0] || 'test_1');
+  const [selectedPlaylist, setSelectedPlaylist] = useState('');
+  const [newPlaylistName, setNewPlaylistName] = useState('');
   
   // Test console logs / status notice (read-only)
   const [testNotice, setTestNotice] = useState('Chưa chạy thử nghiệm nào. Nhập combo và nhấn nút "TEST THỬ NGHIỆM" bên dưới.');
   const [isTesting, setIsTesting] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
+
+  const noticeRef = useRef(null);
+
+  useEffect(() => {
+    if (noticeRef.current) {
+      noticeRef.current.scrollTop = noticeRef.current.scrollHeight;
+    }
+  }, [testNotice]);
 
   const handleTest = async () => {
     if (!comboInput.trim()) {
@@ -44,6 +53,10 @@ const ComboCustomPanel = () => {
       alert('Vui lòng nhập chuỗi nút của Combo!');
       return;
     }
+    if (!selectedPlaylist) {
+      alert('Vui lòng chọn hoặc tạo danh sách phát (Playlist) trước khi lưu!');
+      return;
+    }
 
     setSaveStatus('saving');
     const success = await saveComboToList({
@@ -60,6 +73,22 @@ const ComboCustomPanel = () => {
     } else {
       setSaveStatus('error');
       setTimeout(() => setSaveStatus(null), 3000);
+    }
+  };
+
+  const handleCreatePlaylist = async () => {
+    const trimmed = newPlaylistName.trim();
+    if (!trimmed) {
+      alert('Vui lòng nhập tên cho danh sách phát mới!');
+      return;
+    }
+    const result = await createPlaylist(trimmed);
+    if (result.success) {
+      setSelectedPlaylist(trimmed);
+      setNewPlaylistName('');
+      alert(`Đã tạo danh sách phát "${trimmed}" thành công!`);
+    } else {
+      alert(result.message || 'Lỗi khi tạo danh sách phát!');
     }
   };
 
@@ -87,15 +116,9 @@ const ComboCustomPanel = () => {
         <div className="p-4 rounded-xl bg-slate-900/30 border border-slate-800/40 text-xs text-slate-400 flex gap-3 items-start">
           <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-slate-200">Hướng dẫn ghi ký tự Combo (Move Notation):</p>
+            <p className="font-semibold text-slate-200">Hướng dẫn ngắn gọn:</p>
             <p className="mt-1 text-[11px] leading-relaxed">
-              • <span className="text-cyan-400 font-semibold">Numpad notation (Mặc định)</span>: Sử dụng số (1-9) cho hướng di chuyển (Tương ứng với các phím mũi tên trên Numpad: 6=Tiến, 4=Lùi, 2=Xuống, 8=Lên, 5=Đứng yên) kết hợp nút tấn công: <span className="font-bold text-slate-300">L, M, H, S, B, CL</span>. Ví dụ: <span className="font-mono text-cyan-400">236H</span> (Hadouken), <span className="font-mono text-cyan-400">623H</span> (Shoryuken).
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed">
-              • <span className="text-cyan-400 font-semibold">Action name mode</span>: Viết rõ tên nút hành động của bạn. Ví dụ: <span className="font-mono text-cyan-400">Down, Down-Left, Left + Light</span>.
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed">
-              • Dùng dấu <span className="font-bold text-slate-300">+</span> để ấn đồng thời các phím (Ví dụ: <span className="font-mono text-cyan-400">2+H</span>), dấu <span className="font-bold text-slate-300">,</span> để tách biệt các bước combo (Ví dụ: <span className="font-mono text-cyan-400">5L, 5M, 236H</span>).
+              Nhập chuỗi input (ví dụ: 236L) để bot thi triển.
             </p>
           </div>
         </div>
@@ -141,7 +164,7 @@ const ComboCustomPanel = () => {
                 <label className="text-[10px] text-slate-500 block mb-1 font-bold uppercase">Chuỗi nút thi triển</label>
                 <textarea
                   rows={4}
-                  placeholder={isNumpad ? 'Ví dụ: 236H, 5L, 214M' : 'Ví dụ: Down, Right + Heavy'}
+                  placeholder="Nhập chuỗi input (ví dụ: 236L)"
                   value={comboInput}
                   onChange={(e) => setComboInput(e.target.value)}
                   className="w-full p-4 bg-slate-900/60 rounded-xl border border-slate-800 text-white font-mono text-xs outline-none focus:border-cyan-500 transition-all resize-none"
@@ -159,6 +182,7 @@ const ComboCustomPanel = () => {
                     onChange={(e) => setSelectedPlaylist(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800 text-white font-bold text-[11px] outline-none cursor-pointer appearance-none"
                   >
+                    <option value="" className="bg-slate-950 text-white">-- Chọn Playlist --</option>
                     {playlists.map(name => (
                       <option key={name} value={name} className="bg-slate-950 text-white">
                         {name.toUpperCase()}
@@ -178,6 +202,26 @@ const ComboCustomPanel = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Tạo Playlist Mới */}
+              <div className="mt-3 border-t border-slate-800/40 pt-3">
+                <label className="text-[10px] text-slate-500 block mb-1 font-bold uppercase">Tạo danh sách phát mới</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nhập tên playlist mới..."
+                    value={newPlaylistName}
+                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                    className="flex-1 px-3 py-2.5 bg-slate-900/60 rounded-lg border border-slate-800 text-white font-bold text-[11px] outline-none focus:border-cyan-500 transition-all"
+                  />
+                  <button
+                    onClick={handleCreatePlaylist}
+                    className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-bold transition-all"
+                  >
+                    TẠO LIST
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -190,6 +234,7 @@ const ComboCustomPanel = () => {
               </h3>
               
               <div 
+                ref={noticeRef}
                 className={`w-full min-h-[160px] p-4 rounded-xl border font-mono text-[11px] leading-relaxed shadow-inner overflow-y-auto ${
                   testNotice.startsWith('[LỖI]')
                     ? 'bg-rose-950/20 border-rose-900/30 text-rose-400'
@@ -206,7 +251,7 @@ const ComboCustomPanel = () => {
             <div className="mt-4 p-3 bg-cyan-950/15 border border-cyan-900/25 rounded-xl text-[10px] text-cyan-400/70 font-mono leading-normal">
               <div># PYTHON COMBO INTERFACE API:</div>
               <div># POST /api/test_combo {"{"}</div>
-              <div className="pl-4">"combo_sequence": "{comboInput || '236H'}",</div>
+              <div className="pl-4">"combo_sequence": "{comboInput || ''}",</div>
               <div className="pl-4">"is_numpad": {String(isNumpad)}</div>
               <div>{"}"}</div>
             </div>
@@ -244,4 +289,4 @@ const ComboCustomPanel = () => {
   );
 };
 
-export default ComboCustomPanel;
+export default React.memo(ComboCustomPanel);

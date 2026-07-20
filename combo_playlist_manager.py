@@ -11,9 +11,7 @@ from combo_executor import ComboExecutor
 from input_mapper import InputMapper
 
 DEFAULT_PLAYLISTS = {
-    "test_1": ["236L", "623H", "214M"],
-    "pressure_string": ["2B", "5L", "236S"],
-    "corner_combo": ["623H", "6+H", "236CL"]
+    "default": []
 }
 
 class ComboPlaylistManager:
@@ -23,23 +21,65 @@ class ComboPlaylistManager:
     """
     def __init__(self, filepath: str = "playlists.json"):
         self.filepath = filepath
+        self.first_run = False
+        self.selected_playlist = "default"
         self.playlists = self.load_playlists()
 
     def load_playlists(self) -> dict:
         """
-        Loads playlists from the JSON file. Creates defaults if it doesn't exist.
+        Loads playlists from the JSON file. Creates defaults if it doesn't exist or is empty/corrupt.
         """
-        if not os.path.exists(self.filepath):
+        if not os.path.exists(self.filepath) or os.path.getsize(self.filepath) == 0:
+            self.first_run = True
             self.save_playlists(DEFAULT_PLAYLISTS)
             return DEFAULT_PLAYLISTS.copy()
             
         try:
             with open(self.filepath, 'r', encoding='utf-8') as f:
-                playlists = json.load(f)
+                content = f.read().strip()
+                if not content:
+                    self.first_run = True
+                    self.save_playlists(DEFAULT_PLAYLISTS)
+                    return DEFAULT_PLAYLISTS.copy()
+                playlists = json.loads(content)
+                if not isinstance(playlists, dict) or not playlists:
+                    self.first_run = True
+                    self.save_playlists(DEFAULT_PLAYLISTS)
+                    return DEFAULT_PLAYLISTS.copy()
                 return playlists
         except Exception as e:
-            print(f"[ComboPlaylistManager Warning] Error reading playlists: {e}. Using defaults.")
+            print(f"[ComboPlaylistManager Warning] Error reading playlists: {e}. Resetting to default.")
+            self.first_run = True
+            self.save_playlists(DEFAULT_PLAYLISTS)
             return DEFAULT_PLAYLISTS.copy()
+
+    def reload_playlists(self) -> None:
+        """
+        Reloads playlists from the JSON file to refresh the RAM cache.
+        """
+        self.playlists = self.load_playlists()
+
+    def load_and_select_playlist(self, playlist_name: str) -> str:
+        """
+        Reloads playlists from the JSON file, checks if the selected playlist
+        exists, and returns a safe fallback if it is missing.
+        """
+        self.reload_playlists()
+        if playlist_name in self.playlists:
+            self.selected_playlist = playlist_name
+            return playlist_name
+            
+        names = self.get_playlist_names()
+        if names:
+            self.selected_playlist = names[0]
+        else:
+            self.selected_playlist = "default"
+            if "default" not in self.playlists:
+                self.playlists["default"] = []
+                self.save_playlists()
+        
+        print(f"[ComboPlaylistManager Warning] Selected playlist '{playlist_name}' not found. Resetting to safe state: '{self.selected_playlist}'")
+        return self.selected_playlist
 
     def save_playlists(self, playlists_data: dict = None) -> None:
         """
@@ -85,45 +125,32 @@ class ComboPlaylistManager:
         if name in self.playlists:
             self.playlists.pop(name)
             self.save_playlists()
+            self.reload_playlists()
             return True
         return False
 
     def validate_combo_string(self, combo_str: str) -> bool:
         """
-        Validates that a combo string contains only valid directions (1-9),
-        action letters (L, M, H, S, B, CL), operators (+), or separators (,).
-        Space is allowed and ignored.
+        Validates that a combo string can be successfully parsed.
         """
-        clean = combo_str.replace(" ", "").upper()
-        if not clean:
+        if not combo_str.strip():
             return False
-            
-        valid_chars = set("123456789LMHSB+,")
-        
-        i = 0
-        n = len(clean)
-        while i < n:
-            char = clean[i]
-            if char == 'C':
-                # C must be followed by L to form CL
-                if i + 1 < n and clean[i+1] == 'L':
-                    i += 2
-                    continue
-                else:
-                    return False
-            elif char in valid_chars:
-                i += 1
-            else:
-                return False
-                
-        return True
+        try:
+            from config_manager import ConfigManager
+            from input_mapper import InputMapper
+            cfg = ConfigManager()
+            mapper = InputMapper(cfg)
+            mapper.parse_combo(combo_str, is_numpad=True)
+            return True
+        except Exception:
+            return False
 
     def add_combo(self, playlist_name: str, combo_sequence: str) -> bool:
         """
         Validates a combo string and appends it to a playlist, then auto-saves.
         """
         if not self.validate_combo_string(combo_sequence):
-            print("[Validation Error] Combo contains invalid keys! Only directions 1-9, L, M, H, S, B, CL, + and , are allowed.")
+            print("[Validation Error] Combo contains invalid keys! Only directions 1-9, L, M, H, S, B, CL, GRAB, +, > and , are allowed.")
             return False
             
         if playlist_name not in self.playlists:
@@ -289,6 +316,14 @@ class PlaylistOrchestrator:
         self._stop_event = threading.Event()
         self._thread = None
 
+    @property
+    def playlists(self):
+        return self.playlist_manager.playlists
+
+    @property
+    def is_running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
     def start(self):
         """Starts the playlist loop in a background thread."""
         if self._thread and self._thread.is_alive():
@@ -312,7 +347,7 @@ class PlaylistOrchestrator:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=2.0)
-        self.executor.release_all_keys()
+        self.executor.reset_executor_state()
         print("[Playlist Orchestrator] Playlist loop deactivated.")
 
     def run_playlist(self, playlist_name: str, stop_event: threading.Event) -> None:
@@ -323,10 +358,15 @@ class PlaylistOrchestrator:
         print(f"[Playlist Orchestrator Thread] active loop started for playlist: '{playlist_name}'")
         
         while not stop_event.is_set():
+            # Ensure the playlist still exists in memory (not deleted)
+            if playlist_name not in self.playlists:
+                print(f"[Playlist Orchestrator Error] Playlist '{playlist_name}' was deleted or does not exist. Aborting loop.")
+                break
+
             # 1. Always check GameMonitor.is_game_running() and is_game_focused() before starting any new combo
             if not self.game_monitor.is_game_running() or not self.game_monitor.is_game_focused():
                 # Release keys and wait if game is not active/focused
-                self.executor.release_all_keys()
+                self.executor.reset_executor_state()
                 time.sleep(0.5)
                 continue
                 
@@ -371,9 +411,9 @@ class PlaylistOrchestrator:
                         break
                     # Poll game monitor for fail-safe
                     if not self.game_monitor.is_game_running() or not self.game_monitor.is_game_focused():
-                        self.executor.release_all_keys()
+                        self.executor.reset_executor_state()
                         break
                     time.sleep(0.05)
                     
-        self.executor.release_all_keys()
+        self.executor.reset_executor_state()
         print(f"[Playlist Orchestrator Thread] Loop finished for: '{playlist_name}'")

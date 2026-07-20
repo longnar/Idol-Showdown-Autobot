@@ -1,9 +1,26 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useBot } from './BotContext';
 import { Cpu, Activity, RefreshCw, AlertTriangle, ShieldAlert, CheckCircle } from 'lucide-react';
 
 const SystemLogsPanel = () => {
   const { logs, settings, addLog } = useBot();
+
+  const consoleRef = useRef(null);
+  const isAtBottomRef = useRef(true);
+
+  const handleScroll = () => {
+    if (consoleRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = consoleRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 15;
+      isAtBottomRef.current = isAtBottom;
+    }
+  };
+
+  useEffect(() => {
+    if (consoleRef.current && isAtBottomRef.current) {
+      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   const handleRefreshDiagnostics = () => {
     addLog('info', 'Refreshing process statistics and memory metrics...');
@@ -71,7 +88,7 @@ const SystemLogsPanel = () => {
             LOG CONSOLE OUTPUT (REAL-TIME)
           </h3>
 
-          <div className="flex-1 overflow-y-auto flex flex-col gap-2 font-mono text-[11px] pr-2">
+          <div ref={consoleRef} onScroll={handleScroll} className="flex-1 overflow-y-auto flex flex-col gap-2 font-mono text-[11px] pr-2">
             {logs.map((log, index) => {
               let colorClass = 'text-cyan-500/80';
               let Icon = Cpu;
@@ -105,4 +122,4 @@ const SystemLogsPanel = () => {
   );
 };
 
-export default SystemLogsPanel;
+export default React.memo(SystemLogsPanel);

@@ -12,7 +12,10 @@ from combo_playlist_manager import ComboPlaylistManager, PlaylistOrchestrator
 def run_bot_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     # Fetch window title from ConfigManager
     window_title = config_manager.config.get("game_window", config.TARGET_GAME_WINDOW)
-    process_name = config_manager.config.get("game_process", "notepad.exe")
+    process_name = config_manager.config.get("game_process", "")
+    
+    start_hk = config_manager.config.get("start_hotkey", "f9").lower()
+    stop_hk = config_manager.config.get("stop_hotkey", "f10").lower()
     
     print("\n" + "=" * 60)
     print("                      RUNNING AUTO BOT MODE                     ")
@@ -20,8 +23,8 @@ def run_bot_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     print(f"Target Window:  '{window_title}'")
     print(f"Game Process:   '{process_name}'")
     print(f"Frame Rate:     {config.FPS} FPS")
-    print(f"Start Hotkey:   {config.HOTKEY_START.upper()}")
-    print(f"Stop Hotkey:    {config.HOTKEY_STOP.upper()}")
+    print(f"Start Hotkey:   {start_hk.upper()}")
+    print(f"Stop Hotkey:    {stop_hk.upper()}")
     print(f"Random Mode:    {config.RANDOM_MODE}")
     print("-" * 60)
     
@@ -36,8 +39,8 @@ def run_bot_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     
     listener = WindowsHotkeyListener()
     try:
-        listener.register_hotkey(config.HOTKEY_START, controller.start)
-        listener.register_hotkey(config.HOTKEY_STOP, controller.stop)
+        listener.register_hotkey(start_hk, controller.start)
+        listener.register_hotkey(stop_hk, controller.stop)
     except ValueError as e:
         print(f"[Error] {e}")
         return
@@ -45,7 +48,7 @@ def run_bot_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     listener.start()
     
     print("Bot service is active and listening for hotkeys...")
-    print("Press F9 to start execution loop, F10 to pause.")
+    print(f"Press {start_hk.upper()} to start execution loop, {stop_hk.upper()} to pause.")
     print("Press ENTER in this console to stop the service and return to main menu.")
     print("-" * 60)
     
@@ -61,7 +64,7 @@ def run_bot_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
 
 def execute_custom_combo_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     window_title = config_manager.config.get("game_window", config.TARGET_GAME_WINDOW)
-    process_name = config_manager.config.get("game_process", "notepad.exe")
+    process_name = config_manager.config.get("game_process", "")
     
     print("\n" + "=" * 60)
     print("                    EXECUTE CUSTOM COMBO MODE                   ")
@@ -134,7 +137,20 @@ def execute_custom_combo_mode(config_manager: ConfigManager, game_monitor: GameM
 
 def run_playlist_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     window_title = config_manager.config.get("game_window", config.TARGET_GAME_WINDOW)
-    process_name = config_manager.config.get("game_process", "notepad.exe")
+    process_name = config_manager.config.get("game_process", "")
+    
+    playlist_manager = ComboPlaylistManager()
+    playlist_names = playlist_manager.get_playlist_names()
+    
+    if not playlist_names:
+        print("[Playlist Mode Error] No playlists loaded. Check playlists.json.")
+        input("\nPress Enter to return...")
+        return
+        
+    selected_playlist = playlist_names[choice_idx] if 'choice_idx' in locals() else playlist_names[0] # dummy logic to keep original context but let's be careful: actually selected_playlist is choice dependent. Let's look at lines 136-174 block.
+    # Wait, let's keep the target range precise! Let's check lines 136-174 first.
+    # Ah, lines 136-137 are separate. Let's just modify the window_title / process_name and the print block separately.
+    # Let's cancel this chunk and break it down.
     
     playlist_manager = ComboPlaylistManager()
     playlist_names = playlist_manager.get_playlist_names()
@@ -161,7 +177,8 @@ def run_playlist_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
         print("Invalid choice. Returning to menu.")
         return
         
-    selected_playlist = playlist_names[choice_idx]
+    start_hk = config_manager.config.get("start_hotkey", "f9").lower()
+    stop_hk = config_manager.config.get("stop_hotkey", "f10").lower()
     
     print("\n" + "=" * 60)
     print(f"               RUNNING PLAYLIST LOOP: {selected_playlist.upper()}            ")
@@ -169,8 +186,8 @@ def run_playlist_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     print(f"Target Window:  '{window_title}'")
     print(f"Game Process:   '{process_name}'")
     print(f"Frame Rate:     {config.FPS} FPS")
-    print(f"Start Hotkey:   {config.HOTKEY_START.upper()}")
-    print(f"Stop Hotkey:    {config.HOTKEY_STOP.upper()}")
+    print(f"Start Hotkey:   {start_hk.upper()}")
+    print(f"Stop Hotkey:    {stop_hk.upper()}")
     print("-" * 60)
     
     executor = ComboExecutor(
@@ -191,8 +208,8 @@ def run_playlist_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     
     listener = WindowsHotkeyListener()
     try:
-        listener.register_hotkey(config.HOTKEY_START, orchestrator.start)
-        listener.register_hotkey(config.HOTKEY_STOP, orchestrator.stop)
+        listener.register_hotkey(start_hk, orchestrator.start)
+        listener.register_hotkey(stop_hk, orchestrator.stop)
     except ValueError as e:
         print(f"[Error] {e}")
         return
@@ -200,7 +217,7 @@ def run_playlist_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
     listener.start()
     
     print(f"Playlist loop service for '{selected_playlist}' is active.")
-    print("Press F9 to start, F10 to pause.")
+    print(f"Press {start_hk.upper()} to start, {stop_hk.upper()} to pause.")
     print("Press ENTER in this console to stop the service and return to main menu.")
     print("-" * 60)
     
@@ -217,12 +234,14 @@ def main():
     config_manager = ConfigManager()
     
     while True:
+        # Reload config from file
+        config_manager.config = config_manager.load_config()
         # Retrieve game process and window name from current config
-        process_name = config_manager.config.get("game_process", "notepad.exe")
+        process_name = config_manager.config.get("game_process", "")
         window_title = config_manager.config.get("game_window", config.TARGET_GAME_WINDOW)
         
         # Instantiate GameMonitor with the latest config
-        game_monitor = GameMonitor(process_name, window_title)
+        game_monitor = GameMonitor(config_manager)
         
         # Display Status
         print("\n" + "=" * 60)

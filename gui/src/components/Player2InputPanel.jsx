@@ -107,7 +107,7 @@ const Player2InputPanel = () => {
             Collab: localBindings.Collab.toLowerCase(),
             Burst: localBindings.Burst.toLowerCase(),
             Items: localBindings.Items.toLowerCase(),
-            Grap: localBindings.Grap.toLowerCase()
+            Grab: localBindings.Grab.toLowerCase()
           },
           game_process: "Idol Showdown.exe",
           game_window: "Idol Showdown",
@@ -148,7 +148,7 @@ const Player2InputPanel = () => {
       Collab: 'o',
       Burst: 'u',
       Items: 'h',
-      Grap: 'g'
+      Grab: 'g'
     });
     setSaveStatus('reset');
     setTimeout(() => setSaveStatus(null), 2500);
@@ -170,7 +170,7 @@ const Player2InputPanel = () => {
     { label: 'Hỗ trợ (Collab)', key: 'Collab', desc: 'Gọi nhân vật hỗ trợ' },
     { label: 'Bộc phá (Burst)', key: 'Burst', desc: 'Kích hoạt thanh nổ / Burst' },
     { label: 'Vật phẩm (Items)', key: 'Items', desc: 'Sử dụng vật phẩm nhặt' },
-    { label: 'Vật/Ném (Grap)', key: 'Grap', desc: 'Đòn vật / Bắt lấy đối thủ' },
+    { label: 'Vật/Ném (Grab)', key: 'Grab', desc: 'Đòn vật / Bắt lấy đối thủ' },
   ];
 
   return (
@@ -333,4 +333,4 @@ const Player2InputPanel = () => {
   );
 };
 
-export default Player2InputPanel;
+export default React.memo(Player2InputPanel);

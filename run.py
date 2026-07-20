@@ -33,7 +33,7 @@ def main():
 
     # 4. Start GUI Loop on Main Thread
     try:
-        webview.start()
+        webview.start(gui="edgechromium")
     finally:
         # Cleanup resources on window closure
         print("[System] Closing application. Disabling hotkey listeners...")

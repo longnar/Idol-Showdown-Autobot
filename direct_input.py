@@ -89,9 +89,62 @@ SCAN_CODES = {
     'num_0': (0x52, False),
 }
 
+def get_movement_keys_mapping():
+    """
+    Loads active bindings from config.json if available.
+    Returns a dictionary mapping '1'-'9' to lists of physical keys.
+    """
+    import json
+    import os
+    
+    # Default fallback bindings
+    bindings = {
+        "Up": "w",
+        "Down": "s",
+        "Left": "a",
+        "Right": "d"
+    }
+    
+    config_path = "config.json"
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                if "bindings" in config:
+                    b = config["bindings"]
+                    for action in ["Up", "Down", "Left", "Right"]:
+                        if action in b:
+                            bindings[action] = b[action]
+        except Exception:
+            pass
+            
+    numpad_map = {
+        '1': [bindings["Down"], bindings["Left"]],
+        '2': [bindings["Down"]],
+        '3': [bindings["Down"], bindings["Right"]],
+        '4': [bindings["Left"]],
+        '5': [],
+        '6': [bindings["Right"]],
+        '7': [bindings["Up"], bindings["Left"]],
+        '8': [bindings["Up"]],
+        '9': [bindings["Up"], bindings["Right"]]
+    }
+    return numpad_map
+
 def press_key(key_name: str):
-    """Presses a key and holds it (until released)."""
-    key_name = key_name.lower()
+    """Presses a key and holds it (until released). Supports numpad notations (1-9)."""
+    key_name = str(key_name).lower()
+    
+    # Check if key is a numpad notation 1-9
+    if key_name in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
+        numpad_map = get_movement_keys_mapping()
+        mapped_keys = numpad_map[key_name]
+        success = True
+        for mk in mapped_keys:
+            if not press_key(mk):
+                success = False
+        return success
+
     if key_name not in SCAN_CODES:
         print(f"[Warning] Unknown key: {key_name}")
         return False
@@ -110,8 +163,19 @@ def press_key(key_name: str):
     return True
 
 def release_key(key_name: str):
-    """Releases a key."""
-    key_name = key_name.lower()
+    """Releases a key. Supports numpad notations (1-9)."""
+    key_name = str(key_name).lower()
+    
+    # Check if key is a numpad notation 1-9
+    if key_name in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
+        numpad_map = get_movement_keys_mapping()
+        mapped_keys = numpad_map[key_name]
+        success = True
+        for mk in mapped_keys:
+            if not release_key(mk):
+                success = False
+        return success
+
     if key_name not in SCAN_CODES:
         return False
         

@@ -16,8 +16,8 @@ DEFAULT_CONFIG = {
         "Collab": "o"
     },
     "is_player2_right": True,
-    "game_process": "notepad.exe",
-    "game_window": "Notepad"
+    "game_process": "",
+    "game_window": ""
 }
 
 class ConfigManager:

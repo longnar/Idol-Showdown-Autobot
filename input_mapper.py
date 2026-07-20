@@ -43,7 +43,8 @@ class InputMapper:
         'H': 'Heavy',
         'S': 'Special',
         'B': 'Burst',
-        'CL': 'Collab'
+        'CL': 'Collab',
+        'GRAB': 'Grab'
     }
 
     def __init__(self, config_manager: ConfigManager):
@@ -53,6 +54,7 @@ class InputMapper:
         :param config_manager: ConfigManager instance.
         """
         self.config_manager = config_manager
+        self.j_analysis_logs = []
 
     def tokenize(self, combo_string: str) -> List[str]:
         """
@@ -72,10 +74,30 @@ class InputMapper:
         while i < n:
             char = clean_str[i]
             
-            # Check for CL (Collab)
-            if char == 'C' and i + 1 < n and clean_str[i+1] == 'L':
+            # Check for bracket tokens
+            if char == '[':
+                end_idx = clean_str.find(']', i)
+                if end_idx != -1:
+                    token = clean_str[i:end_idx+1]
+                    i = end_idx + 1
+                else:
+                    token = char
+                    i += 1
+            elif char == '{':
+                end_idx = clean_str.find('}', i)
+                if end_idx != -1:
+                    token = clean_str[i:end_idx+1]
+                    i = end_idx + 1
+                else:
+                    token = char
+                    i += 1
+            # Check for CL (Collab) and GRAB
+            elif char == 'C' and i + 1 < n and clean_str[i+1] == 'L':
                 token = "CL"
                 i += 2
+            elif char == 'G' and i + 3 < n and clean_str[i+1:i+4] == 'RAB':
+                token = "GRAB"
+                i += 4
             else:
                 token = char
                 i += 1
@@ -84,9 +106,28 @@ class InputMapper:
             if i < n and clean_str[i] == '+':
                 i += 1  # Skip '+'
                 if i < n:
-                    if clean_str[i] == 'C' and i + 1 < n and clean_str[i+1] == 'L':
+                    if clean_str[i] == '[':
+                        end_idx = clean_str.find(']', i)
+                        if end_idx != -1:
+                            next_token = clean_str[i:end_idx+1]
+                            i = end_idx + 1
+                        else:
+                            next_token = clean_str[i]
+                            i += 1
+                    elif clean_str[i] == '{':
+                        end_idx = clean_str.find('}', i)
+                        if end_idx != -1:
+                            next_token = clean_str[i:end_idx+1]
+                            i = end_idx + 1
+                        else:
+                            next_token = clean_str[i]
+                            i += 1
+                    elif clean_str[i] == 'C' and i + 1 < n and clean_str[i+1] == 'L':
                         next_token = "CL"
                         i += 2
+                    elif clean_str[i] == 'G' and i + 3 < n and clean_str[i+1:i+4] == 'RAB':
+                        next_token = "GRAB"
+                        i += 4
                     else:
                         next_token = clean_str[i]
                         i += 1
@@ -135,9 +176,14 @@ class InputMapper:
             sub_actions = [sa.strip() for sa in block.split('+')]
             keys_for_step = []
             for action in sub_actions:
+                action = action.strip()
+                if not action:
+                    continue
                 key = self.config_manager.get_key_for_action(action)
                 if key:
                     keys_for_step.append(key)
+                else:
+                    raise ValueError(f"Hành động '{action}' không khớp với bất kỳ phím cấu hình nào trong hệ thống.")
                     
             if not keys_for_step:
                 continue
@@ -213,6 +259,7 @@ class InputMapper:
             key_presence = {}
             token_keys_list = []
             token_is_attack = []
+            key_hold_type = {}  # Track hold/charge for each physical key
             
             for token in tokens:
                 sub_tokens = token.split('+')
@@ -223,11 +270,37 @@ class InputMapper:
                     t = t.strip()
                     if not t:
                         continue
+                    
+                    # Detect brackets for hold/charge
+                    is_hold = False
+                    is_charge = False
+                    if t.startswith('[') and t.endswith(']'):
+                        t = t[1:-1]
+                        is_hold = True
+                    elif t.startswith('{') and t.endswith('}'):
+                        t = t[1:-1]
+                        is_charge = True
+                        
                     if t in direction_map:
                         step_actions.extend(direction_map[t])
+                        for act in direction_map[t]:
+                            k = self.config_manager.get_key_for_action(act)
+                            if k:
+                                if is_hold:
+                                    key_hold_type[k] = 'hold'
+                                elif is_charge:
+                                    key_hold_type[k] = 'charge'
                     elif t in self.ACTION_MAP:
                         step_actions.append(self.ACTION_MAP[t])
                         is_attack = True
+                        k = self.config_manager.get_key_for_action(self.ACTION_MAP[t])
+                        if k:
+                            if is_hold:
+                                key_hold_type[k] = 'hold'
+                            elif is_charge:
+                                key_hold_type[k] = 'charge'
+                    else:
+                        raise ValueError(f"Ký hiệu '{t}' trong token '{token}' không được nhận diện là hướng di chuyển (1-9) hoặc đòn đánh (L, M, H, S, B, CL, GRAB).")
                 
                 # Resolve actions to physical keys
                 keys = []
@@ -267,6 +340,14 @@ class InputMapper:
                             run_end_frame = token_start_frames[t_idx] + 1
                             run_duration = run_end_frame - run_start_frame
                             
+                            # Add hold/charge bonuses
+                            bonus = 0
+                            if key_hold_type.get(key) == 'hold':
+                                bonus = 30
+                            elif key_hold_type.get(key) == 'charge':
+                                bonus = 15
+                            run_duration += bonus
+                            
                             start_time = current_block_start_time + (run_start_frame / 60.0)
                             hold_duration = run_duration / 60.0
                             
@@ -282,6 +363,14 @@ class InputMapper:
                     final_hold_frames = 5 if token_is_attack[-1] else 3
                     run_end_frame = token_start_frames[-1] + final_hold_frames
                     run_duration = run_end_frame - run_start_frame
+                    
+                    # Add hold/charge bonuses
+                    bonus = 0
+                    if key_hold_type.get(key) == 'hold':
+                        bonus = 30
+                    elif key_hold_type.get(key) == 'charge':
+                        bonus = 15
+                    run_duration += bonus
                     
                     start_time = current_block_start_time + (run_start_frame / 60.0)
                     hold_duration = run_duration / 60.0
@@ -307,6 +396,88 @@ class InputMapper:
         key_events.sort(key=lambda x: x["start_time"])
         return key_events
 
+    def preprocess_combo_string(self, s: str) -> str:
+        self.j_analysis_logs = []
+        
+        # 1. Replace scc (Superchat Cancel) with >
+        s = re.sub(r'\bscc\b', '>', s, flags=re.IGNORECASE)
+        
+        # 2. Replace X~Y (Kara cancel) with X > Y (fast cancel)
+        s = re.sub(r'(\w)~(\w)', r'\1 > \2', s)
+        
+        # 3. Multihit: X(n) -> X (MUST run before optional moves to prevent stripping parentheses first)
+        s = re.sub(r'(\w+)\(\d+\)', r'\1', s)
+        
+        # 4. Optional moves (X) -> X
+        s = re.sub(r'\((\w+)\)', r'\1', s)
+        
+        # 5. Choices X/Y -> X
+        s = re.sub(r'(\w+)/(\w+)', r'\1', s)
+        
+        # 6. Counterhit: CH X -> CH is just annotation, so remove it
+        s = re.sub(r'\bCH\b\.?\s*', '', s, flags=re.IGNORECASE)
+        
+        # 7. OTG: OTG X -> OTG is annotation, so remove it
+        s = re.sub(r'\bOTG\b\.?\s*', '', s, flags=re.IGNORECASE)
+        
+        # 8. Remove any leading # from directions (e.g. #2 -> 2)
+        s = re.sub(r'#([1-9])', r'\1', s)
+        
+        # 9. Standardize whitespace
+        s = re.sub(r'\s+', ' ', s).strip()
+        
+        # Now, split by operators > and , to dynamically analyze j.X
+        tokens = re.split(r'([,>])', s)
+        
+        is_airborne = False
+        processed_tokens = []
+        
+        for tok in tokens:
+            tok_strip = tok.strip()
+            if tok_strip in ('>', ','):
+                processed_tokens.append(tok)
+                continue
+                
+            if not tok_strip:
+                processed_tokens.append(tok)
+                continue
+                
+            # Check if this block has a jumping prefix j.
+            j_match = re.match(r'^j\.(.+)$', tok_strip, re.IGNORECASE)
+            if j_match:
+                move = j_match.group(1)
+                if not is_airborne:
+                    # Insert jump
+                    processed_tokens.append(f"8 > 5 > {move}")
+                    self.j_analysis_logs.append(f"[Phân tích j.{move}] -> Thực hiện: Jump (Up) -> Đánh: {move}")
+                else:
+                    # Keep move
+                    processed_tokens.append(move)
+                    self.j_analysis_logs.append(f"[Phân tích j.{move}] -> Nhân vật đã ở trên không -> Đánh: {move}")
+                is_airborne = True
+            else:
+                # Check if the block is a jump input
+                tok_upper = tok_strip.upper()
+                if 'JC' in tok_upper or any(d in tok_upper for d in ['7', '8', '9']):
+                    is_airborne = True
+                else:
+                    is_airborne = False
+                processed_tokens.append(tok_strip)
+                
+        # Reconstruct the string
+        s = "".join(processed_tokens)
+        
+        # 10. Delay: dl.X -> we can translate it to a neutral direction '5' followed by the action
+        s = re.sub(r'\bdl\.', '5 > ', s, flags=re.IGNORECASE)
+        
+        # 11. Microdash: md.X -> microdash is 66 (dash forward).
+        s = re.sub(r'\bmd\.', '66 > ', s, flags=re.IGNORECASE)
+        
+        # 12. Standardize whitespace
+        s = re.sub(r'\s+', ' ', s).strip()
+        
+        return s
+
     def parse_combo(self, combo_string: str, is_numpad: bool = True) -> List[Dict]:
         """
         Parses a combo string into a list of structured time-based key events.
@@ -315,6 +486,7 @@ class InputMapper:
         :param is_numpad: True if Numpad Notation, False if Action Names.
         :return: List of key event dictionaries.
         """
+        combo_string = self.preprocess_combo_string(combo_string)
         if is_numpad:
             return self.parse_numpad_combo_to_time_based(combo_string)
         else:

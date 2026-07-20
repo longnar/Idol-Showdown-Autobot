@@ -24,7 +24,7 @@ export const BotProvider = ({ children }) => {
     Collab: 'o',
     Burst: 'u',
     Items: 'h',
-    Grap: 'g'
+    Grab: 'g'
   });
 
   // 2. STATE FOR MAIN SETTINGS (Frame 1)
@@ -35,8 +35,8 @@ export const BotProvider = ({ children }) => {
     selectedComboSet: 'test_1',
     startHotkey: 'F9',
     stopHotkey: 'F10',
-    gameProcess: 'notepad.exe',
-    gameWindow: 'Notepad'
+    gameProcess: '',
+    gameWindow: ''
   });
 
   // 3. PLAYLISTS & COMBOS STATE (Frame 3 & 4)
@@ -48,6 +48,11 @@ export const BotProvider = ({ children }) => {
   const [logs, setLogs] = useState([]);
   const [botActive, setBotActive] = useState(false);
   const [activePlaylist, setActivePlaylist] = useState(null);
+  const [gameStatus, setGameStatus] = useState({
+    running: false,
+    focused: false,
+    pid: null
+  });
 
   // Helper log in client
   const addLog = (type, msg) => {
@@ -85,6 +90,16 @@ export const BotProvider = ({ children }) => {
           setLogs(logsData);
         }
 
+        const statusRes = await fetch('/api/status');
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          setGameStatus({
+            running: statusData.game_running,
+            focused: statusData.game_focused,
+            pid: statusData.game_pid
+          });
+        }
+
         const botRes = await fetch('/api/bot/status');
         if (botRes.ok) {
           const botData = await botRes.json();
@@ -112,6 +127,16 @@ export const BotProvider = ({ children }) => {
         if (logsRes.ok) {
           const logsData = await logsRes.json();
           setLogs(logsData);
+        }
+
+        const statusRes = await fetch('/api/status');
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          setGameStatus({
+            running: statusData.game_running,
+            focused: statusData.game_focused,
+            pid: statusData.game_pid
+          });
         }
       } catch (err) {
         console.error("Lỗi đồng bộ định kỳ:", err);
@@ -193,7 +218,7 @@ export const BotProvider = ({ children }) => {
         Collab: updatedBindings.Collab,
         Burst: updatedBindings.Burst,
         Items: updatedBindings.Items,
-        Grap: updatedBindings.Grap
+        Grab: updatedBindings.Grab
       }
     };
 
@@ -239,7 +264,33 @@ export const BotProvider = ({ children }) => {
     };
   };
 
-  // E. Lưu Combo mới / chỉnh sửa vào List (Frame 3 & 4)
+  // E. Tạo Playlist mới
+  const createPlaylist = async (name) => {
+    try {
+      const res = await fetch('/api/create_playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      if (res.ok) {
+        const comboRes = await fetch('/api/combos');
+        if (comboRes.ok) {
+          const comboData = await comboRes.json();
+          setCombos(comboData.combos);
+          setPlaylists(comboData.playlists);
+        }
+        return { success: true };
+      } else {
+        const errData = await res.json();
+        return { success: false, message: errData.message || "Lỗi tạo playlist" };
+      }
+    } catch (err) {
+      console.error("Lỗi khi tạo playlist:", err);
+      return { success: false, message: "Lỗi kết nối server" };
+    }
+  };
+
+  // F. Lưu Combo mới / chỉnh sửa vào List (Frame 3 & 4)
   const saveComboToList = async (newCombo) => {
     try {
       const res = await fetch('/api/save_combo', {
@@ -313,6 +364,7 @@ export const BotProvider = ({ children }) => {
       addLog,
       botActive,
       activePlaylist,
+      gameStatus,
       startBot,
       stopBot,
       saveGeneralSettings,
@@ -320,7 +372,8 @@ export const BotProvider = ({ children }) => {
       testCombo,
       saveComboToList,
       deleteComboFromList,
-      selectComboToPlay
+      selectComboToPlay,
+      createPlaylist
     }}>
       {children}
     </BotContext.Provider>
