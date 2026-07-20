@@ -60,7 +60,7 @@ Nếu khi chạy không thấy player 2 có hành động gì :
 ---
  DEMO HƯỚNG DẪN
 
-[(https://i9.ytimg.com/vi/vXeQCVQOz8k/mqdefault.jpg?v=6a5d948d&sqp=CIyq9tIG&rs=AOn4CLCTOSAS2wvAUdJHfKl1rRLN0S3dHA)](https://youtu.be/vXeQCVQOz8k)
+[(https://img.youtube.com/vi/vXeQCVQOz8k/0.jpg)](https://youtu.be/vXeQCVQOz8k)
 
 ---
 
