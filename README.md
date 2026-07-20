@@ -58,7 +58,7 @@ Nếu khi chạy không thấy player 2 có hành động gì :
     ```
 
 ---
- DEMO HƯỚNG DẪN
+
 [![Xem Demo Dự Án](https://img.youtube.com/vi/vXeQCVQOz8k/0.jpg)](https://www.youtube.com/watch?v=vXeQCVQOz8k)
 
 ---
