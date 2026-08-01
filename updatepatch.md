@@ -47,3 +47,11 @@ This document lists all major patches, bug fixes, UX enhancements, and structura
 *   **Báo lỗi cú pháp chi tiết (Detailed Exception Handling)**: Thay thế cơ chế validate cũ bằng việc chạy thử nghiệm dry-run thông qua `InputMapper`. Nếu phát hiện ký tự hoặc đòn đánh lạ không hợp lệ, hệ thống sẽ quăng ngoại lệ chỉ ra chính xác ký tự/đoạn bị lỗi (ví dụ: chỉ rõ ký tự lỗi nằm trong token nào) hiển thị trực tiếp lên ô `Testing input notice`.
 *   **Đồng bộ kiểm thử Combo (Test Combo Fix)**: Chuyển đổi endpoint `/api/test_combo` sang chạy đồng bộ kết nối thông tin phản hồi từ backend. Kết quả thực thi cuối cùng (thành công hoặc lỗi mất focus/không hoạt động) sẽ được cập nhật trực tiếp tại khung `Testing input notice`.
 *   **Giả lập hướng di chuyển phím số**: Cập nhật module `direct_input.py` để nhận diện các nút di chuyển đơn lẻ dạng numpad notation từ `1`-`9` và tự động ánh xạ thành tổ hợp các phím di chuyển tương ứng (`w`, `a`, `s`, `d`) lấy từ file cấu hình của người dùng.
+
+## 6. Tính năng Ghi Combo nổi (Floating Record Overlay - Mới nhất)
+*   **Cửa sổ nổi Always on Top**: Phát triển giao diện ghi phím phụ siêu nhỏ gọn dạng thanh bar nằm trên cùng màn hình. Thiết lập thuộc tính ghim (`on_top = True`) và ẩn viền (`frameless = True`) giúp hiển thị rõ nét trên giao diện game mà không bị che khuất.
+*   **Tự động Ẩn/Hiện Trình chính**: Khi kích hoạt chế độ ghi từ màn hình chính, cửa sổ chính sẽ tự động ẩn đi (`minimize()`), và khi lưu hoặc hủy trên overlay, cửa sổ chính tự động xuất hiện lại (`restore()`) và điền dữ liệu combo đã ghi vào ô nhập.
+*   **Live Feedback & Điều khiển bằng Biểu tượng**:
+    *   Hiển thị thời gian thực (realtime) chuỗi combo đang gõ ngay trên màn hình nổi.
+    *   Sử dụng các biểu tượng tối giản: `⟳` (Reset ghi lại), `✕` (Hủy bỏ), `▶` (Chạy thử nghiệm nhanh), và `💾` (Lưu combo).
+*   **Thuật toán chuyển đổi Numpad thông minh**: Phân tích sự kiện nhấn/nhả phím thô từ thư viện `keyboard` toàn cục, quy đổi phím hướng di chuyển và phím đòn đánh dựa trên file cấu hình của người dùng thành cú pháp Numpad Notation chuẩn xác với các dấu nối `>` (hủy đòn dưới 400ms) và `,` (chờ nhịp trên 400ms).

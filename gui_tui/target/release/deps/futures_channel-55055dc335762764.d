@@ -1,0 +1,11 @@
+L:\Code Project\fighting_game_bot - ratatui\gui_tui\target\release\deps\futures_channel-55055dc335762764.d: D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lib.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lock.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\mod.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\queue.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\oneshot.rs
+
+L:\Code Project\fighting_game_bot - ratatui\gui_tui\target\release\deps\libfutures_channel-55055dc335762764.rlib: D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lib.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lock.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\mod.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\queue.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\oneshot.rs
+
+L:\Code Project\fighting_game_bot - ratatui\gui_tui\target\release\deps\libfutures_channel-55055dc335762764.rmeta: D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lib.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lock.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\mod.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\queue.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\oneshot.rs
+
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lib.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\lock.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\mod.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\mpsc\queue.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-channel-0.3.33\src\oneshot.rs:

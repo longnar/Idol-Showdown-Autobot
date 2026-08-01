@@ -1,0 +1,1 @@
+l:\Code\ Project\fighting_game_bot\ -\ ratatui\gui_tui\target\debug\gui_tui.exe: l:\Code\ Project\fighting_game_bot\ -\ ratatui\gui_tui\src\api.rs l:\Code\ Project\fighting_game_bot\ -\ ratatui\gui_tui\src\main.rs l:\Code\ Project\fighting_game_bot\ -\ ratatui\gui_tui\src\overlay.rs l:\Code\ Project\fighting_game_bot\ -\ ratatui\gui_tui\src\ui.rs

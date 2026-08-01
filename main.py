@@ -37,15 +37,7 @@ def run_bot_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
         game_monitor=game_monitor
     )
     
-    listener = WindowsHotkeyListener()
-    try:
-        listener.register_hotkey(start_hk, controller.start)
-        listener.register_hotkey(stop_hk, controller.stop)
-    except ValueError as e:
-        print(f"[Error] {e}")
-        return
-        
-    listener.start()
+    print("[Lưu ý] Tính năng phím tắt toàn hệ thống (Global Hotkeys) đã bị tắt để tránh xung đột đầu vào giữa các phần mềm.")
     
     print("Bot service is active and listening for hotkeys...")
     print(f"Press {start_hk.upper()} to start execution loop, {stop_hk.upper()} to pause.")
@@ -206,15 +198,7 @@ def run_playlist_mode(config_manager: ConfigManager, game_monitor: GameMonitor):
         fps=config.FPS
     )
     
-    listener = WindowsHotkeyListener()
-    try:
-        listener.register_hotkey(start_hk, orchestrator.start)
-        listener.register_hotkey(stop_hk, orchestrator.stop)
-    except ValueError as e:
-        print(f"[Error] {e}")
-        return
-        
-    listener.start()
+    print("[Lưu ý] Tính năng phím tắt toàn hệ thống (Global Hotkeys) đã bị tắt để tránh xung đột đầu vào giữa các phần mềm.")
     
     print(f"Playlist loop service for '{selected_playlist}' is active.")
     print(f"Press {start_hk.upper()} to start, {stop_hk.upper()} to pause.")

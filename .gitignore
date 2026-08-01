@@ -3,9 +3,6 @@
 __pycache__/
 *.pyc
 
-# Node/React dependencies and production builds
-gui/node_modules/
-gui/dist/
 
 # PyInstaller temporary builds and output specs
 build/

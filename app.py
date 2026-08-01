@@ -4,10 +4,15 @@ import json
 import time
 import datetime
 import threading
+import logging
 from flask import Flask, jsonify, request, send_from_directory
 
 # Add workspace directory to python path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Suppress Flask/Werkzeug request log spam in TUI mode
+if os.environ.get("TUI_MODE") == "1":
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 from config_manager import ConfigManager
 from combo_playlist_manager import ComboPlaylistManager, PlaylistOrchestrator
@@ -15,6 +20,7 @@ from game_monitor import GameMonitor
 from combo_executor import ComboExecutor
 from input_mapper import InputMapper
 from hotkey import WindowsHotkeyListener
+from input_recorder import InputRecorder
 
 # Global Logs Buffer
 system_logs = [
@@ -31,7 +37,8 @@ def add_log(log_type: str, msg: str):
     # Limit to last 100 log entries
     if len(system_logs) > 100:
         system_logs.pop(0)
-    print(f"[{log_type.upper()}] {msg}")
+    if os.environ.get("TUI_MODE") != "1":
+        print(f"[{log_type.upper()}] {msg}")
 
 # Stdout Redirector to automatically pipe Python prints into React log panel
 class LogRedirector:
@@ -39,7 +46,8 @@ class LogRedirector:
         self.original_stdout = original_stdout
         
     def write(self, string):
-        self.original_stdout.write(string)
+        if os.environ.get("TUI_MODE") != "1":
+            self.original_stdout.write(string)
         msg = string.strip()
         if msg:
             log_type = "info"
@@ -61,19 +69,14 @@ class LogRedirector:
                 system_logs.pop(0)
                 
     def flush(self):
-        self.original_stdout.flush()
+        if os.environ.get("TUI_MODE") != "1":
+            self.original_stdout.flush()
 
 # Redirect stdout
 sys.stdout = LogRedirector(sys.stdout)
 
 # Initialize Flask app
-# Static folder set to gui/dist to serve React static bundle in production
-if getattr(sys, 'frozen', False):
-    static_folder = os.path.join(sys._MEIPASS, "gui", "dist")
-else:
-    static_folder = "gui/dist"
-
-app = Flask(__name__, static_folder=static_folder, static_url_path="")
+app = Flask(__name__)
 
 # Initialize Backend Configuration Managers
 config_mgr = ConfigManager()
@@ -135,6 +138,11 @@ class BotManager:
         self.hotkey_listener = None
         self.running = False
         self.active_playlist = None
+        self.main_window = None
+        self.overlay_window = None
+        self.recorder = InputRecorder()
+        self.has_saved_combo = False
+        self.saved_combo_str = ""
         self.lock = threading.Lock()
         
     def start_bot(self):
@@ -202,17 +210,20 @@ class BotManager:
                 pass
             self.hotkey_listener = None
             
-        start_hk = self.config_mgr.config.get("start_hotkey", "f9").lower()
-        stop_hk = self.config_mgr.config.get("stop_hotkey", "f10").lower()
-        
-        self.hotkey_listener = WindowsHotkeyListener()
-        try:
-            self.hotkey_listener.register_hotkey(start_hk, lambda: self.toggle_bot("start"))
-            self.hotkey_listener.register_hotkey(stop_hk, lambda: self.toggle_bot("stop"))
-            self.hotkey_listener.start()
-            add_log("success", f"Registered global hotkeys: START={start_hk.upper()}, STOP={stop_hk.upper()}")
-        except Exception as e:
-            add_log("error", f"Could not bind global hotkeys: {e}")
+        if self.config_mgr.config.get("hotkeys_enabled", True):
+            start_hk = self.config_mgr.config.get("start_hotkey", "f9").lower()
+            stop_hk = self.config_mgr.config.get("stop_hotkey", "f10").lower()
+            
+            self.hotkey_listener = WindowsHotkeyListener()
+            try:
+                self.hotkey_listener.register_hotkey(start_hk, lambda: self.toggle_bot("start"))
+                self.hotkey_listener.register_hotkey(stop_hk, lambda: self.toggle_bot("stop"))
+                self.hotkey_listener.start()
+                add_log("success", f"Registered global hotkeys: START={start_hk.upper()}, STOP={stop_hk.upper()}")
+            except Exception as e:
+                add_log("error", f"Could not bind global hotkeys: {e}")
+        else:
+            add_log("warning", "Global hotkeys are disabled (Turned OFF in configuration).")
 
 bot_mgr = BotManager(config_mgr, playlist_mgr)
 
@@ -227,10 +238,10 @@ def update_interaction_time():
 # API ENDPOINTS
 # ----------------------------------------------------
 
-# Serve React static assets
+# Root route status
 @app.route("/")
 def index():
-    return app.send_static_file("index.html")
+    return jsonify({"status": "active", "message": "Idol Showdown Autobot Backend API"})
 
 @app.route("/api/status", methods=["GET"])
 def get_status():
@@ -258,7 +269,8 @@ def get_config():
         "startHotkey": conf.get("start_hotkey", "F9").upper(),
         "stopHotkey": conf.get("stop_hotkey", "F10").upper(),
         "gameProcess": conf.get("game_process", ""),
-        "gameWindow": conf.get("game_window", "")
+        "gameWindow": conf.get("game_window", ""),
+        "hotkeysEnabled": conf.get("hotkeys_enabled", True)
     }
     
     # Map backend binding keys to frontend names
@@ -294,6 +306,7 @@ def save_config():
     config_mgr.config["start_hotkey"] = data.get("start_hotkey", "f9").lower()
     config_mgr.config["stop_hotkey"] = data.get("stop_hotkey", "f10").lower()
     config_mgr.config["selected_playlist"] = data.get("selected_playlist", "test_1")
+    config_mgr.config["hotkeys_enabled"] = data.get("hotkeys_enabled", True)
     
     config_mgr.save_config()
     bot_mgr.setup_hotkeys()
@@ -588,6 +601,291 @@ def api_stop_bot():
 
 # Setup hotkeys on startup
 bot_mgr.setup_hotkeys()
+
+@app.route("/overlay")
+def render_overlay():
+    html_content = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Idol Showdown Overlay</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #030712;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      -webkit-app-region: drag;
+    }
+    .overlay-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(3, 7, 18, 0.95));
+      border: 1.5px solid #06b6d4;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+    }
+    .left-controls, .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+    button {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #334155;
+      border-color: #475569;
+      color: #f1f5f9;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+    }
+    button.save-btn {
+      background: rgba(6, 182, 212, 0.1);
+      border-color: rgba(6, 182, 212, 0.3);
+      color: #06b6d4;
+      width: 65px;
+      font-weight: bold;
+      font-size: 10px;
+    }
+    button.save-btn:hover {
+      background: #06b6d4;
+      border-color: #22d3ee;
+      color: #090d16;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+    }
+    .feedback-display {
+      flex: 1;
+      margin: 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      height: 20px;
+      overflow: hidden;
+    }
+    .rec-dot {
+      width: 7px;
+      height: 7px;
+      background-color: #ef4444;
+      border-radius: 50%;
+      animation: pulse 1s infinite alternate;
+      flex-shrink: 0;
+    }
+    #combo-text {
+      font-family: Consolas, Monaco, monospace;
+      font-size: 11px;
+      color: #22d3ee;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(34, 211, 238, 0.3);
+    }
+    @keyframes pulse {
+      from { opacity: 0.3; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1.1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay-container">
+    <div class="left-controls">
+      <button onclick="resetRecord()" title="Làm mới (Reset)">⟳</button>
+      <button onclick="cancelRecord()" title="Hủy bỏ (Cancel)">✕</button>
+      <button onclick="testRecord()" title="Chạy thử (Play)">▶</button>
+    </div>
+    
+    <div class="feedback-display">
+      <div class="rec-dot"></div>
+      <div id="combo-text">Đang lắng nghe...</div>
+    </div>
+    
+    <div class="right-controls">
+      <button onclick="saveRecord()" class="save-btn" title="Lưu lại (Save)">💾 LƯU</button>
+    </div>
+  </div>
+
+  <script>
+    function updateLiveCombo() {
+      fetch('/api/record/status')
+        .then(res => res.json())
+        .then(data => {
+          const comboText = document.getElementById('combo-text');
+          if (data.live_combo) {
+            comboText.textContent = data.live_combo;
+          } else {
+            comboText.textContent = 'Hãy gõ phím di chuyển / đòn đánh...';
+          }
+        })
+        .catch(err => console.error(err));
+    }
+
+    setInterval(updateLiveCombo, 100);
+
+    function resetRecord() {
+      fetch('/api/record/reset', { method: 'POST' });
+    }
+
+    function cancelRecord() {
+      fetch('/api/record/cancel', { method: 'POST' });
+    }
+
+    function saveRecord() {
+      fetch('/api/record/stop', { method: 'POST' });
+    }
+
+    function testRecord() {
+      fetch('/api/record/test', { method: 'POST' });
+    }
+  </script>
+</body>
+</html>"""
+    return html_content
+
+@app.route("/api/record/start", methods=["POST"])
+def start_record():
+    bot_mgr.recorder.start()
+    bot_mgr.has_saved_combo = False
+    bot_mgr.saved_combo_str = ""
+    
+    if bot_mgr.main_window:
+        try:
+            bot_mgr.main_window.minimize()
+        except Exception as e:
+            print(f"[Overlay Debug] Error minimizing main window: {e}")
+            
+    if bot_mgr.overlay_window:
+        try:
+            bot_mgr.overlay_window.show()
+        except Exception as e:
+            print(f"[Overlay Debug] Error showing overlay window: {e}")
+            
+    add_log("info", "Bắt đầu ghi phím. Giao diện chính đã thu nhỏ.")
+    return jsonify({"success": True})
+
+@app.route("/api/record/stop", methods=["POST"])
+def stop_record():
+    combo = bot_mgr.recorder.stop()
+    bot_mgr.saved_combo_str = combo
+    bot_mgr.has_saved_combo = True
+    
+    if bot_mgr.overlay_window:
+        try:
+            bot_mgr.overlay_window.hide()
+        except Exception as e:
+            print(f"[Overlay Debug] Error hiding overlay window: {e}")
+            
+    if bot_mgr.main_window:
+        try:
+            bot_mgr.main_window.restore()
+        except Exception as e:
+            print(f"[Overlay Debug] Error restoring main window: {e}")
+            
+    add_log("success", f"Đã lưu combo ghi được: '{combo}'")
+    return jsonify({"success": True, "combo": combo})
+
+@app.route("/api/record/cancel", methods=["POST"])
+def cancel_record():
+    bot_mgr.recorder.stop()
+    bot_mgr.has_saved_combo = False
+    bot_mgr.saved_combo_str = ""
+    
+    if bot_mgr.overlay_window:
+        try:
+            bot_mgr.overlay_window.hide()
+        except Exception as e:
+            print(f"[Overlay Debug] Error hiding overlay window: {e}")
+            
+    if bot_mgr.main_window:
+        try:
+            bot_mgr.main_window.restore()
+        except Exception as e:
+            print(f"[Overlay Debug] Error restoring main window: {e}")
+            
+    add_log("warning", "Đã hủy quá trình ghi phím.")
+    return jsonify({"success": True})
+
+@app.route("/api/record/reset", methods=["POST"])
+def reset_record():
+    bot_mgr.recorder.reset()
+    return jsonify({"success": True})
+
+@app.route("/api/record/status", methods=["GET"])
+def get_record_status():
+    return jsonify({
+        "recording": bot_mgr.recorder.is_recording,
+        "live_combo": bot_mgr.recorder.live_combo_string,
+        "has_saved_combo": bot_mgr.has_saved_combo
+    })
+
+@app.route("/api/record/saved_combo", methods=["GET"])
+def get_saved_combo():
+    combo = bot_mgr.saved_combo_str
+    bot_mgr.has_saved_combo = False
+    bot_mgr.saved_combo_str = ""
+    return jsonify({"combo": combo})
+
+@app.route("/api/record/test", methods=["POST"])
+def test_recorded_combo():
+    combo = bot_mgr.recorder.live_combo_string
+    if not combo:
+        return jsonify({"success": False, "message": "Không có combo nào để chạy thử"}), 400
+        
+    config_mgr.config = config_mgr.load_config()
+    process_name = config_mgr.config.get("game_process", "")
+    window_title = config_mgr.config.get("game_window", "")
+    game_monitor = GameMonitor(config_mgr)
+    
+    if not game_monitor.is_game_running():
+        add_log("error", f"Chạy thử thất bại: Game '{process_name}' không hoạt động.")
+        return jsonify({"success": False, "message": "Game không chạy"}), 400
+        
+    def run_test():
+        add_log("info", "Bắt đầu chạy thử combo vừa ghi trong 1 giây...")
+        time.sleep(1.0)
+        if not game_monitor.check_fail_safe():
+            add_log("error", "Chạy thử thất bại: Không thể focus cửa sổ game!")
+            return
+        executor = ComboExecutor(config_mgr, game_monitor, 60.0)
+        mapper = InputMapper(config_mgr)
+        try:
+            key_events = mapper.parse_combo(combo, is_numpad=True)
+            if key_events:
+                executor.execute_overlapping_combo(key_events)
+            else:
+                add_log("error", f"Không thể giải mã combo: {combo}")
+        except Exception as e:
+            add_log("error", f"Ngoại lệ chạy thử: {e}")
+            
+    threading.Thread(target=run_test, daemon=True).start()
+    return jsonify({"success": True})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000)

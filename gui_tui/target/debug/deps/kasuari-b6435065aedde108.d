@@ -1,0 +1,14 @@
+L:\Code Project\fighting_game_bot - ratatui\gui_tui\target\debug\deps\kasuari-b6435065aedde108.d: D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\lib.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\constraint.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\error.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\expression.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\relations.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\row.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\solver.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\strength.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\term.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\variable.rs
+
+L:\Code Project\fighting_game_bot - ratatui\gui_tui\target\debug\deps\libkasuari-b6435065aedde108.rmeta: D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\lib.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\constraint.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\error.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\expression.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\relations.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\row.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\solver.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\strength.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\term.rs D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\variable.rs
+
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\lib.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\constraint.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\error.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\expression.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\relations.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\row.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\solver.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\strength.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\term.rs:
+D:\Rust\cargo\registry\src\index.crates.io-1949cf8c6b5b557f\kasuari-0.4.12\src\variable.rs:

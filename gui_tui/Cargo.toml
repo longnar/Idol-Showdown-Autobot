@@ -1,0 +1,24 @@
+[package]
+name = "gui_tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# TUI framework and terminal backend
+ratatui = "0.30.2"
+crossterm = { version = "0.27.0", features = ["events"] }
+lazy_static = "1.4.0"
+
+# Async runtime and HTTP requests
+tokio = { version = "1.35", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Windows API bindings for Hybrid Overlay (Click-through, Transparent, Always-on-top)
+windows-sys = { version = "0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader"
+] }
