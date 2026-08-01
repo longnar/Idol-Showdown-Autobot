@@ -576,7 +576,7 @@ dependencies = [
 
 [[package]]
 name = "gui_tui"
-version = "0.1.0"
+version = "0.102.0"
 dependencies = [
  "crossterm 0.27.0",
  "lazy_static",
