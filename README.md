@@ -44,6 +44,9 @@ Nếu bạn muốn chạy thông qua tệp khởi động Python:
 2. Trình khởi động sẽ tự động khởi động backend Flask ngầm và chạy giao diện TUI Rust phía trên để bạn sử dụng.
 
 ---
+# --- DEMO ---
+
+Youtube : https://youtu.be/bV6YkkzNPyM
 
 ## 📝 Giấy Phép & Lưu Ý
 * Phần mềm phát triển phục vụ mục đích học tập nghiên cứu cơ chế mô phỏng phím bấm của Windows API.
